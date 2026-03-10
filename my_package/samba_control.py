@@ -1,8 +1,6 @@
 import os
 import subprocess
-import sys
 import logging
-from logging.handlers import RotatingFileHandler
 
 # 取得 main.py 所在的資料夾
 log_dir = os.path.dirname(os.path.realpath(__file__))
@@ -13,46 +11,24 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3)]
+    handlers=[logging.FileHandler(log_file, encoding='utf-8'), logging.StreamHandler()]
 )
 
 def check_root_permission():
     if os.geteuid() != 0:
         logging.warning("錯誤權限執行腳本！")
         print("請以 sudo 或 root 權限執行此腳本！")
-        sys.exit(1)
-
-def install_samba_service():
-    try:
-        # 檢查是否已安裝 samba
-        subprocess.run(['dpkg', '-s', 'samba'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        logging.info("Samba 已安裝。")
-        print("Samba 已經安裝在系統中。")
-    except subprocess.CalledProcessError:
-        # 如果未安裝，進行安裝
-        print("Samba 尚未安裝，開始安裝...")
-        try:
-            subprocess.run(['sudo', 'apt-get', 'install', 'samba', '-y'], check=True)
-            logging.info("Samba 服務安裝完成。")
-            print("Samba 服務安裝完成。")
-        except subprocess.CalledProcessError as e:
-            logging.error(f"安裝 Samba 失敗: {e}")
-            print("安裝 Samba 服務失敗，請檢查錯誤訊息。")
-            return
-        
-    # 安裝完成後啟動 Samba 服務
-    try:
-        subprocess.run(['sudo', 'systemctl', 'start', 'smbd'], check=True)
-        subprocess.run(['sudo', 'systemctl', 'enable', 'smbd'], check=True)  # 開機啟動
-        logging.info("Samba 服務已成功啟動並設為開機啟動。")
-        print("Samba 服務啟動並已設為開機啟動。")
-    except subprocess.CalledProcessError as e:
-        logging.error(f"啟動 Samba 服務失敗: {e}")
-        print("啟動 Samba 服務失敗，請檢查錯誤訊息。")
 
 def check_samba_installed():
     result = subprocess.run(['which', 'smbd'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     return result.returncode == 0
+
+def install_samba_service():
+    #only print message suggest
+    print("我還沒寫安裝 Samba 服務的功能，但你可以使用以下命令來安裝 Samba 服務：")
+    print("sudo apt-get update(debian/ubuntu) 或 sudo yum update(centos/rhel) 或 sudo pacman -Syu(arch)")
+    print("sudo apt-get install samba -y(debian/ubuntu) 或 sudo yum install samba -y(centos/rhel) 或 sudo pacman -S samba(arch)")
+    print("安裝完成後，請重新啟動此程式以繼續使用 Samba 管理功能。")
 
 def read_samba_config():
     samba_config_path = '/etc/samba/smb.conf'
@@ -228,7 +204,7 @@ def check_samba_status():
         print(f"無法檢查 Samba 服務狀態：{e}")
         return False
 
-def view_log(last_n_lines = 10):
+def view_samba_log(last_n_lines = 10):
     log_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "samba_manager.log")
     
     try:
@@ -239,45 +215,3 @@ def view_log(last_n_lines = 10):
                 print(line.strip())
     except FileNotFoundError:
         print("日誌檔案未找到！")
-
-def main_menu():
-    while True:
-        print("\n=== Samba 管理選單 ===")
-        print("1. 檢查 Samba 是否安裝")
-        print("2. 顯示當前共享資料夾")
-        print("3. 新增共享資料夾")
-        print("4. 刪除共享資料夾")
-        print("5. 啟動/停止 Samba 服務")
-        print("6. 查看錯誤日誌")
-        print("0. 離開")
-        choice = input("請選擇操作: ")
-
-        if choice == "1":
-            if check_samba_installed():
-                print("Samba 已安裝！")
-            else:
-                print("Samba 未安裝！")
-        elif choice == "2":
-            display_shared_folders()
-        elif choice == "3":
-            add_shared_folder()
-        elif choice == "4":
-            delete_shared_folder()
-        elif choice == "5":
-            if check_samba_status():
-                print("samba 服務已啟用")
-                stop_samba_service()
-            else:
-                print("Samba 服務尚未啟動")
-                start_samba_service()
-        elif choice == "6":
-            view_log()
-        elif choice == "0":
-            print("離開程式")
-            break
-        else:
-            print("無效選項，請重新選擇！")
-        
-if __name__ == "__main__":
-    check_root_permission()
-    main_menu()
